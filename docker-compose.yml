@@ -1,0 +1,30 @@
+version: '3.8'
+services:
+  minio:
+    image: minio/minio:latest
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+    volumes:
+      - minio_data:/data
+
+  app:
+    build: .
+    depends_on:
+      - minio
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-sqlite:///./data/healthdb.sqlite3}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      INCOMING_DIR: /data/incoming
+    volumes:
+      - ./data:/data
+    ports:
+      - "8000:8000"
+
+volumes:
+  minio_data:

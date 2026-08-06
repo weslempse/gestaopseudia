@@ -1,0 +1,8 @@
+# Ignore local secrets and data
+.env
+data/
+*.sqlite3
+license.json
+__pycache__/
+*.pyc
+.vscode/

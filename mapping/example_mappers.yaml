@@ -1,0 +1,18 @@
+sisab:
+  temas:
+    "Agravos negligenciados": agravos_negligenciados
+    "Alimentação saudável": alimentacao_saudavel
+    "Autocuidado de pessoas com doe": autocuidado
+    # ... complete conforme necessário
+  praticas:
+    "Antropometria": antropometria
+    "Aplicação tópica de flúor": aplicacao_topica_fluor
+    "Desenvolvimento da linguagem": desenvolvimento_linguagem
+    # ... complete conforme necessário
+fast:
+  default:
+    # placeholders; envie amostra do FAST para preencher
+    # "INEP": inep
+    # "Data evento": event_date
+    # "Data digitação": fast_digitization_date
+    # "Tema/Prática": item_raw
