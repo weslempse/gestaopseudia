@@ -2,7 +2,6 @@ name: Drive Sync and ETL
 
 on:
   schedule:
-    # every 6 hours; change to daily if you prefer: '0 2 * * *'
     - cron: '0 */6 * * *'
   workflow_dispatch: {}
 
@@ -39,10 +38,15 @@ jobs:
           echo "INCOMING_DIR=./data/incoming" >> $GITHUB_ENV
 
       - name: Prepare Drive upload flags (if configured)
-        if: ${{ secrets.DRIVE_REPORT_FOLDER_ID != '' }}
         run: |
-          echo "UPLOAD_TO_DRIVE=true" >> $GITHUB_ENV
-          echo "DRIVE_REPORT_FOLDER_ID=${{ secrets.DRIVE_REPORT_FOLDER_ID }}" >> $GITHUB_ENV
+          # Verifica em runtime se o secret DRIVE_REPORT_FOLDER_ID existe e só então seta as flags
+          if [ -n "${{ secrets.DRIVE_REPORT_FOLDER_ID }}" ]; then
+            echo "UPLOAD_TO_DRIVE=true" >> $GITHUB_ENV
+            echo "DRIVE_REPORT_FOLDER_ID=${{ secrets.DRIVE_REPORT_FOLDER_ID }}" >> $GITHUB_ENV
+            echo "Drive upload flags set"
+          else
+            echo "DRIVE_REPORT_FOLDER_ID secret not set; skipping Drive upload"
+          fi
 
       - name: Debug - list files and check env
         run: |
