@@ -1,0 +1,89 @@
+name: Drive Sync and ETL
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  sync-and-etl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Write Google service account JSON
+        env:
+          GSA_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          mkdir -p ./secrets
+          echo "$GSA_JSON" > ./secrets/gdrive-sa.json
+          chmod 600 ./secrets/gdrive-sa.json
+
+      - name: Export env vars
+        run: |
+          echo "GOOGLE_SERVICE_ACCOUNT_FILE=./secrets/gdrive-sa.json" >> $GITHUB_ENV
+          echo "GOOGLE_DRIVE_ROOT_FOLDER_ID=${{ secrets.GOOGLE_DRIVE_ROOT_FOLDER_ID }}" >> $GITHUB_ENV
+          echo "SUPABASE_DATABASE_URL=${{ secrets.SUPABASE_DATABASE_URL }}" >> $GITHUB_ENV
+          echo "INCOMING_DIR=./data/incoming" >> $GITHUB_ENV
+
+      - name: Prepare Drive upload flags (if configured)
+        run: |
+          # Verifica em runtime se o secret DRIVE_REPORT_FOLDER_ID existe e só então seta as flags
+          if [ -n "${{ secrets.DRIVE_REPORT_FOLDER_ID }}" ]; then
+            echo "UPLOAD_TO_DRIVE=true" >> $GITHUB_ENV
+            echo "DRIVE_REPORT_FOLDER_ID=${{ secrets.DRIVE_REPORT_FOLDER_ID }}" >> $GITHUB_ENV
+            echo "Drive upload flags set"
+          else
+            echo "DRIVE_REPORT_FOLDER_ID secret not set; skipping Drive upload"
+          fi
+
+      - name: Debug - list files and check env
+        run: |
+          echo "===== list root ====="
+          ls -la
+          echo "===== .github/workflows ====="
+          ls -la .github/workflows || true
+          echo "===== tools ====="
+          ls -la tools || true
+          echo "===== tools/reports ====="
+          ls -la tools/reports || true
+          echo "===== secrets dir ====="
+          ls -la ./secrets || true
+          echo "===== check files existence ====="
+          if [ -f "./secrets/gdrive-sa.json" ]; then echo "service account JSON exists"; else echo "service account JSON NOT FOUND"; fi
+          if [ -f "tools/drive_sync.py" ]; then echo "drive_sync.py exists"; else echo "drive_sync.py NOT FOUND"; fi
+          if [ -f "tools/reports/fast_actions_matrix.py" ]; then echo "fast_actions_matrix.py exists"; else echo "fast_actions_matrix.py NOT FOUND"; fi
+          echo "===== check env var presence (not values) ====="
+          [ -n "$SUPABASE_DATABASE_URL" ] && echo "SUPABASE_DATABASE_URL=present" || echo "SUPABASE_DATABASE_URL=missing"
+          [ -n "$GOOGLE_SERVICE_ACCOUNT_JSON" ] && echo "GOOGLE_SERVICE_ACCOUNT_JSON=present" || echo "GOOGLE_SERVICE_ACCOUNT_JSON=missing"
+          [ -n "$GOOGLE_DRIVE_ROOT_FOLDER_ID" ] && echo "GOOGLE_DRIVE_ROOT_FOLDER_ID=present" || echo "GOOGLE_DRIVE_ROOT_FOLDER_ID=missing"
+          [ -n "$DRIVE_REPORT_FOLDER_ID" ] && echo "DRIVE_REPORT_FOLDER_ID=present" || echo "DRIVE_REPORT_FOLDER_ID=missing"
+
+      - name: Smoke test - quick DB & SA file check
+        run: |
+          python tools/debug_smoke.py
+
+      - name: Run Drive sync and ETL
+        run: |
+          python tools/drive_sync.py
+
+      - name: Generate FAST matrix report (creates ./reports/*.xlsx)
+        run: |
+          python tools/reports/fast_actions_matrix.py
+
+      - name: Upload report as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fast-actions-report
+          path: reports/*.xlsx
