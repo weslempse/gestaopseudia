@@ -2,8 +2,9 @@ name: Drive Sync and ETL
 
 on:
   schedule:
+    # every 6 hours; change to daily if you prefer: '0 2 * * *'
     - cron: '0 */6 * * *'
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 jobs:
   sync-and-etl:
@@ -34,9 +35,13 @@ jobs:
         run: |
           echo "GOOGLE_SERVICE_ACCOUNT_FILE=./secrets/gdrive-sa.json" >> $GITHUB_ENV
           echo "GOOGLE_DRIVE_ROOT_FOLDER_ID=${{ secrets.GOOGLE_DRIVE_ROOT_FOLDER_ID }}" >> $GITHUB_ENV
-          echo "DATABASE_URL=${{ secrets.SUPABASE_DATABASE_URL }}" >> $GITHUB_ENV
+          echo "SUPABASE_DATABASE_URL=${{ secrets.SUPABASE_DATABASE_URL }}" >> $GITHUB_ENV
           echo "INCOMING_DIR=./data/incoming" >> $GITHUB_ENV
 
       - name: Run Drive sync and ETL
         run: |
           python tools/drive_sync.py
+
+      - name: Generate FAST matrix report
+        run: |
+          python tools/re
